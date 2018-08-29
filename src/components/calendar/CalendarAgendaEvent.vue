@@ -156,22 +156,23 @@
 
 <style lang="stylus">
   @import 'calendar.vars.styl'
-  .calendar-agenda-event-empty-slot
-    display none
-    background green
+  .calendar-agenda
+    .calendar-agenda-event-empty-slot
+      display none
+      background green
 
-  .calendar-agenda-event-dot-style
-    width 100%
-    background-color inherit
-    transition background-color 0.3s ease
-    &:hover
-      background-color $whiteHighlightBackgroundColor
+    .calendar-agenda-event-dot-style
+      width 100%
+      background-color inherit
       transition background-color 0.3s ease
-    .calendar-agenda-event-time
-      margin-left 1em
-      width 160px
-    .calendar-agenda-event-dot
-      border-radius 12px
-      width 12px
-      height 12px
+      &:hover
+        background-color $whiteHighlightBackgroundColor
+        transition background-color 0.3s ease
+      .calendar-agenda-event-time
+        margin-left 1em
+        width 160px
+      .calendar-agenda-event-dot
+        border-radius 12px
+        width 12px
+        height 12px
 </style>
