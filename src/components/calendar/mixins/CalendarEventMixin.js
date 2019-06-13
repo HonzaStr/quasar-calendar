@@ -1,15 +1,14 @@
 import dashHas from 'lodash.has'
-// import DateTime from 'luxon'
-import {
-  date
-} from 'quasar'
+import DateTime from 'luxon/src/datetime'
+import Interval from 'luxon/src/interval'
 const defaultParsed = {
   byAllDayStartDate: {},
   byAllDayObject: {},
   byStartDate: {},
   byId: {}
 }
-const { DateTime } = require('luxon')
+// const { DateTime } = require('luxon')
+const gridBlockSize = 5 // the number here is how many minutes for each block to use when calculating overlaps
 export default {
   computed: {},
   methods: {
@@ -97,7 +96,11 @@ export default {
         byAllDayStartDate: {},
         byAllDayObject: {},
         byStartDate: {},
-        byId: {}
+        byId: {},
+        byMultiDay: {},
+        byNextDay: {},
+        byContinuedMultiDay: {},
+        byContinuedNextDay: {}
       }
       return true
     },
@@ -150,42 +153,82 @@ export default {
             thisEvent.end.dateObject
           )
         }
+
+        // put in duration for multiday events with an associated time
+        if (
+          !thisEvent.start['isAllDay'] &&
+          thisEvent.start.dateObject.toISODate() !== thisEvent.end.dateObject.toISODate()
+        ) {
+          thisEvent['durationDays'] = Math.ceil(
+            thisEvent.end.dateObject
+              .diff(thisEvent.start.dateObject)
+              .as('days')
+          )
+          if (thisEvent['durationDays'] > 2) {
+            thisEvent['timeSpansMultipleDays'] = true
+          }
+          else {
+            thisEvent['timeSpansOvernight'] = true
+          }
+        }
+
         let thisStartDate = thisEvent.start.dateObject.toISODate()
         // get all-day events
-        if (thisEvent.start.isAllDay) {
+        if (
+          thisEvent.start.isAllDay ||
+          Math.floor(thisEvent.end.dateObject.diff(thisEvent.start.dateObject).as('days')) > 1
+        ) {
           for (let dayAdd = 0; dayAdd < thisEvent.durationDays; dayAdd++) {
             let innerStartDate = thisEvent.start.dateObject
               .plus({ days: dayAdd })
               .toISODate()
-            if (!dashHas(this.parsed.byAllDayStartDate, innerStartDate)) {
-              this.parsed.byAllDayStartDate[innerStartDate] = []
-            }
-            this.parsed.byAllDayStartDate[innerStartDate].push(thisEvent.id)
+            this.addToParsedList('byAllDayStartDate', innerStartDate, thisEvent.id)
             // newer all-day events routine
-            if (!dashHas(this.parsed.byAllDayObject, innerStartDate)) {
-              this.parsed.byAllDayObject[innerStartDate] = []
-            }
-
-            this.parsed.byAllDayObject[innerStartDate].push({
-              id: thisEvent.id,
-              hasPrev: (dayAdd > 0),
-              hasNext: (dayAdd < (thisEvent.durationDays - 1)),
-              hasPreviousDay: (dayAdd > 0),
-              hasNextDay: (dayAdd < (thisEvent.durationDays - 1)),
-              durationDays: thisEvent.durationDays,
-              startDate: thisEvent.start.dateObject,
-              daysFromStart: dayAdd
-            })
+            this.addToParsedList(
+              'byAllDayObject',
+              innerStartDate,
+              {
+                id: thisEvent.id,
+                hasPrev: (dayAdd > 0),
+                hasNext: (dayAdd < (thisEvent.durationDays - 1)),
+                hasPreviousDay: (dayAdd > 0),
+                hasNextDay: (dayAdd < (thisEvent.durationDays - 1)),
+                durationDays: thisEvent.durationDays,
+                startDate: thisEvent.start.dateObject,
+                daysFromStart: dayAdd
+              }
+            )
           }
         }
 
         // get events with a start and end time
         else {
           thisEvent.durationMinutes = this.parseGetDurationMinutes(thisEvent)
-          if (!dashHas(this.parsed.byStartDate, thisStartDate)) {
-            this.parsed.byStartDate[thisStartDate] = []
+          this.addToParsedList('byStartDate', thisStartDate, thisEvent.id)
+
+          if (thisEvent.start.dateObject.toISODate() !== thisEvent.end.dateObject.toISODate()) {
+            // this is a date where the time is set and spans across more than one day
+            const diffDays = Math.floor(thisEvent.end.dateObject.diff(thisEvent.start.dateObject).as('days'))
+
+            if (diffDays > 1) {
+              // this event spans multiple days
+              this.addToParsedList('byMultiDay', thisStartDate, thisEvent.id)
+              this.addToParsedList('byAllDayObject', thisStartDate, thisEvent.id)
+              this.addToParsedList('byAllDayStartDate', thisStartDate, thisEvent.id)
+              let multiDate = thisEvent.start.dateObject
+              while (multiDate.toISODate() !== thisEvent.end.dateObject.toISODate()) {
+                multiDate = multiDate.plus({ days: 1 })
+                this.addToParsedList('byContinuedMultiDay', multiDate.toISODate(), thisEvent.id)
+                this.addToParsedList('byAllDayObject', thisStartDate, thisEvent.id)
+              }
+            }
+            else {
+              // this event crosses into the next day
+              this.addToParsedList('byNextDay', thisStartDate, thisEvent.id)
+              this.addToParsedList('byContinuedNextDay', thisEvent.end.dateObject.toISODate(), thisEvent.id)
+              this.addToParsedList('byStartDate', thisEvent.end.dateObject.toISODate(), thisEvent.id)
+            }
           }
-          this.parsed.byStartDate[thisStartDate].push(thisEvent.id)
         }
       }
       // sort all day events
@@ -199,6 +242,19 @@ export default {
       }
     },
 
+    addToParsedList: function (listName, thisDate, whatToPush) {
+      if (!dashHas(this.parsed[listName], thisDate)) {
+        this.parsed[listName][thisDate] = []
+      }
+      this.parsed[listName][thisDate].push(whatToPush)
+    },
+    eventIsContinuedFromPreviousDay(id, thisDayObject) {
+      const isoDate = this.makeDT(thisDayObject).toISODate()
+      return (
+        dashHas(this.parsed['byContinuedNextDay'], isoDate) &&
+        this.parsed['byContinuedNextDay'][isoDate].includes(id)
+      )
+    },
     buildAllDaySlotArray: function () {
       let slotAssignments = {}
 
@@ -246,21 +302,27 @@ export default {
       }
     },
 
-    sortPairOfAllDayObjects: function (a, b) {
-      if (a.daysFromStart < b.daysFromStart) return 1
-      if (a.daysFromStart > b.daysFromStart) return -1
+    sortPairOfAllDayObjects: function (eventA, eventB) {
+      if (eventA.daysFromStart < eventB.daysFromStart) return 1
+      if (eventA.daysFromStart > eventB.daysFromStart) return -1
       // okay, so daysFromStart are equal, now look at duration
-      if (a.durationDays > b.durationDays) return 1
-      if (a.durationDays < b.durationDays) return -1
+      if (eventA.durationDays > eventB.durationDays) return 1
+      if (eventA.durationDays < eventB.durationDays) return -1
       // daysFromStart are equal, so just take the first one
       return 0
     },
 
-    sortPairOfDateEvents: function (a, b) {
-      return date.getDateDiff(
-        date.addToDate(a.start.dateObject, { milliseconds: a.durationMinutes }),
-        date.addToDate(b.start.dateObject, { milliseconds: b.durationMinutes })
-      )
+    sortPairOfDateEvents: function (eventA, eventB) {
+      // return date.getDateDiff(
+      //   date.addToDate(eventA.start.dateObject, { milliseconds: eventA.durationMinutes }),
+      //   date.addToDate(eventB.start.dateObject, { milliseconds: eventB.durationMinutes })
+      // )
+      return eventB.start.dateObject
+        .plus({ milliseconds: eventA.durationMinutes })
+        .diff(
+          eventB.start.dateObject.plus({ milliseconds: eventA.durationMinutes })
+        )
+        .as('days')
     },
 
     sortDateEvents: function (eventArray) {
@@ -275,34 +337,140 @@ export default {
       }
       return returnArray
     },
+
     parseDateEvents: function (eventArray) {
-      let overlapSegment = 1
-      let overlapIteration = 1
+      let columnArray = [[]]
+      let gridTimeMap = new Map()
       for (let eventId of eventArray) {
-        let numberOfOverlaps = 0
-        for (let compareEventId of eventArray) {
-          let thisEvent = this.parsed.byId[eventId]
-          let compareEvent = this.parsed.byId[compareEventId]
-          if (
-            eventId !== compareEventId &&
-            this.parseHasOverlap(thisEvent, compareEvent)
-          ) {
-            numberOfOverlaps++
+        let thisEvent = this.parsed.byId[eventId]
+
+        let gridTimes = this.getGridTimeSlots(thisEvent)
+        for (let gridCounter = gridTimes.start; gridCounter <= gridTimes.end; gridCounter++) {
+          if (gridTimeMap.has(gridCounter)) {
+            gridTimeMap.set(gridCounter, gridTimeMap.get(gridCounter) + 1)
+          }
+          else {
+            gridTimeMap.set(gridCounter, 1)
           }
         }
-        this.parsed.byId[eventId]['numberOfOverlaps'] = numberOfOverlaps
-        if (numberOfOverlaps > 0) {
-          this.parsed.byId[eventId]['overlapSegment'] = overlapSegment
-          this.parsed.byId[eventId]['overlapIteration'] = overlapIteration
-          overlapIteration++
+
+        let foundAColumn = false
+        for (let columnIndex in columnArray) {
+          if (this.hasSlotForEvent(thisEvent, columnArray[columnIndex])) {
+            columnArray[columnIndex].push(thisEvent)
+            foundAColumn = true
+            break
+          }
         }
-        else {
-          this.parsed.byId[eventId]['overlapSegment'] = 0
-          overlapSegment++
-          overlapIteration = 1
+        if (!foundAColumn) {
+          columnArray.push([thisEvent])
         }
       }
+      // let numberOfColumns = columnArray.length
+      for (let columnIndex in columnArray) {
+        for (let thisEvent of columnArray[columnIndex]) {
+          // thisEvent.numberOfOverlaps = numberOfColumns - 1
+          thisEvent.numberOfOverlaps = this.getMaxOfGrid(thisEvent, gridTimeMap) - 1
+          thisEvent.overlapIteration = parseInt(columnIndex) + 1
+        }
+      }
+      // make column count corrections for overlapping events that overlap with other events. Confusing.
+      for (let eventId of eventArray) {
+        let thisEvent = this.parsed.byId[eventId]
+        thisEvent.numberOfOverlaps = this.getMaxOverlapsForEvent(thisEvent, eventArray)
+      }
     },
+    eventsOverlap: function (event1, event2) {
+      // const interval1 = this.getIntervalFromEvent(event1)
+      // const interval2 = this.getIntervalFromEvent(event2)
+      // return interval1.overlaps(interval2)
+      return this.getIntervalFromEvent(event1).overlaps(this.getIntervalFromEvent(event2))
+    },
+    getIntervalFromEvent: function (thisEvent) {
+      return Interval.fromDateTimes(
+        thisEvent.start.dateObject,
+        thisEvent.end.dateObject
+      )
+    },
+    getMaxOverlapsForEvent: function (testEvent, eventArray) {
+      let maxOverlaps = testEvent.numberOfOverlaps
+      for (let eventId of eventArray) {
+        const thisEvent = this.parsed.byId[eventId]
+        if (this.eventsOverlap(testEvent, thisEvent)) {
+          if (thisEvent.numberOfOverlaps > testEvent.numberOfOverlaps) {
+            maxOverlaps = thisEvent.numberOfOverlaps
+          }
+        }
+      }
+      return maxOverlaps
+    },
+    hasSlotForEvent: function (checkEvent, existingEvents = []) {
+      let slotAvailable = true
+      for (let thisEvent of existingEvents) {
+        if (
+          // case 1: top of checkEvent overlaps bottom of thisEvent
+          checkEvent.start.dateObject >= thisEvent.start.dateObject &&
+          checkEvent.start.dateObject < thisEvent.end.dateObject
+        ) {
+          slotAvailable = false
+          break
+        }
+        else if (
+          // case 2: bottom of checkEvent overlaps top of thisEvent
+          checkEvent.end.dateObject > thisEvent.start.dateObject &&
+          checkEvent.end.dateObject <= thisEvent.end.dateObject
+        ) {
+          slotAvailable = false
+          break
+        }
+        else if (
+          // case 3: checkEvent falls inside of thisEvent
+          checkEvent.start.dateObject >= thisEvent.start.dateObject &&
+          checkEvent.end.dateObject <= thisEvent.end.dateObject
+        ) {
+          slotAvailable = false
+          break
+        }
+        else if (
+          // case 4: checkEvent encompasses all of thisEvent
+          checkEvent.start.dateObject <= thisEvent.start.dateObject &&
+          checkEvent.end.dateObject >= thisEvent.end.dateObject
+        ) {
+          slotAvailable = false
+          break
+        }
+      }
+      return slotAvailable
+    },
+
+    getGridTimeSlots: function (thisEvent) {
+      return {
+        start: this.getGridTime(thisEvent.start.dateObject, false),
+        end: this.getGridTime(thisEvent.end.dateObject, true) - 1
+      }
+    },
+    getGridTime: function (dateObject, roundUp = false) {
+      dateObject = this.makeDT(dateObject) // just in case
+      const gridCalc = ((dateObject.hour * 60) + dateObject.minute) / gridBlockSize
+      if (roundUp) {
+        return Math.ceil(gridCalc)
+      }
+      else {
+        return Math.floor(gridCalc)
+      }
+    },
+    getMaxOfGrid: function (thisEvent, gridTimeMap) {
+      // TODO: there's probably a fancier Collections way to do this
+      let max = 0
+      const gridTimes = this.getGridTimeSlots(thisEvent)
+      for (let gridCounter = gridTimes.start; gridCounter <= gridTimes.end; gridCounter++) {
+        if (gridTimeMap.has(gridCounter) && gridTimeMap.get(gridCounter) > max) {
+          max = gridTimeMap.get(gridCounter)
+        }
+      }
+      return max
+    },
+
     parseGetDurationMinutes: function (eventObj) {
       if (eventObj.start.isAllDay) {
         return 24 * 60
@@ -313,10 +481,6 @@ export default {
           'minutes'
         )
       }
-    },
-    parseHasOverlap: function (event1, event2) {
-      return (event1.start.dateObject <= event2.end.dateObject) &&
-        (event1.end.dateObject >= event2.start.dateObject)
     },
     getPassedInParsedEvents: function () {
       this.parsed = defaultParsed
@@ -365,7 +529,7 @@ export default {
     },
 
     handleEventUpdate: function (eventObject) {
-      if (dashHas(this._props, 'fullComponentRef')) {
+      if (dashHas(this._props, 'fullComponentRef') && this._props.fullComponentRef) {
         // this component has a calendar parent, so don't move forward
         return
       }
@@ -377,6 +541,37 @@ export default {
           this.parseEventList()
         }
       }
+    },
+
+    formatTimeRange: function (startTime, endTime) {
+      let returnString = ''
+      // start time
+      returnString += this.simplifyTimeFormat(
+        this.makeDT(startTime).toLocaleString(DateTime.TIME_SIMPLE),
+        (this.formatDate(startTime, 'a') === this.formatDate(endTime, 'a'))
+      )
+      returnString += ' - '
+      // end time
+      returnString += this.simplifyTimeFormat(
+        this.makeDT(endTime).toLocaleString(DateTime.TIME_SIMPLE),
+        false
+      )
+      return returnString
+    },
+    formatTime: function (startTime) {
+      let returnString = this.makeDT(startTime).toLocaleString(DateTime.TIME_SIMPLE)
+      // simplify if AM / PM present
+      if (returnString.includes('M')) {
+        returnString = returnString.replace(':00', '') // remove minutes if = ':00'
+          .replace(' AM', 'am')
+          .replace(' PM', 'pm')
+      }
+      return returnString
+    },
+    getEventDuration: function (startTime, endTime) {
+      return Math.floor(
+        this.makeDT(endTime).diff(this.makeDT(startTime)).as('minutes')
+      )
     }
   },
   mounted () {}

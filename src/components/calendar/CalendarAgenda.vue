@@ -95,7 +95,6 @@
           >
             <div
               class="col-auto calendar-agenda-side"
-              :NOstyle="{ 'width': leftMargin, 'max-width': leftMargin }"
               :class="{ 'cursor-pointer': calendarDaysAreClickable }"
               @click="handleDayClick(getDaysForwardDate(daysForward - 1))"
             >
@@ -114,11 +113,16 @@
                 :key="makeDT(forwardDate).toISODate() + getEventIdString(thisEvent)"
               >
                 <calendar-agenda-event
+                  v-if="!thisEvent.timeSpansOvernight || makeDT(thisEvent.start.dateObject).toISODate() === makeDT(forwardDate).toISODate()"
                   :event-object="thisEvent"
+                  :prevent-event-detail="preventEventDetail"
                   :event-ref="eventRef"
                   :calendar-locale="calendarLocale"
                   :calendar-timezone="calendarTimezone"
+                  :allow-editing="allowEditing"
+                  :render-html="renderHtml"
                   agenda-style="dot"
+                  :forward-date="forwardDate"
                 />
               </div>
             </div>
@@ -131,22 +135,27 @@
       ref="defaultEventDetail"
       v-if="!preventEventDetail"
       :event-object="eventDetailEventObject"
+      :prevent-event-detail="preventEventDetail"
       :event-ref="eventRef"
+      :calendar-locale="calendarLocale"
+      :calendar-timezone="calendarTimezone"
       :allow-editing="allowEditing"
+      :render-html="renderHtml"
     />
 
   </div>
 </template>
 
 <script>
-  import CalendarMixin from './mixins/CalendarMixin'
-  import CalendarEventMixin from './mixins/CalendarEventMixin'
-  import CalendarParentComponentMixin from './mixins/CalendarParentComponentMixin'
+  import {
+    CalendarMixin,
+    CalendarEventMixin,
+    CalendarParentComponentMixin
+  } from './mixins'
   import CalendarAgendaEvent from './CalendarAgendaEvent'
   import CalendarEventDetail from './CalendarEventDetail'
   import CalendarHeaderNav from './CalendarHeaderNav'
   import {
-    date,
     QBtn,
     QTooltip,
     QScrollArea,
@@ -182,15 +191,13 @@
       scrollHeight: {
         type: String,
         default: '200px'
-      },
-      fullComponentRef: String
+      }
     },
     data () {
       return {
         workingDate: new Date(),
         numJumpDays: 28,
         localNumDays: 28,
-        dayRowArray: [],
         dayCounter: [],
         parsed: this.getDefaultParsed(),
         eventDetailEventObject: {}
@@ -203,43 +210,63 @@
     },
     methods: {
       getDaysForwardDate: function (daysForward) {
-        return date.addToDate(this.workingDate, {days: daysForward})
+        return this.makeDT(this.workingDate).plus({days: daysForward})
       },
       isFirstOfMonth: function (thisDate) {
-        return thisDate.getDate() === 1
+        return this.makeDT(thisDate).day === 1
       },
       isFirstDayOfWeek: function (thisDate) {
-        return date.getDayOfWeek(thisDate) === 1
+        return this.makeDT(thisDate).weekday === 1
       },
       loadMore: function (index, done) {
         this.localNumDays += this.numJumpDays
-        done()
+        done(true)
       },
       doUpdate: function () {
         this.mountSetDate()
+        this.triggerDisplayChange(
+          this.eventRef,
+          this.getAgendaDisplayDates()
+        )
       },
       getWeekTitle: function (firstDate) {
-        let lastDate = date.addToDate(firstDate, {days: 6})
-        if (firstDate.getMonth() === lastDate.getMonth()) {
+        firstDate = this.makeDT(firstDate)
+        let lastDate = firstDate.plus({days: 6})
+        if (firstDate.month === lastDate.month) {
           return this.formatDate(firstDate, 'MMM d - ') + this.formatDate(lastDate, 'd')
         }
         else {
           return this.formatDate(firstDate, 'MMM d - ') + this.formatDate(lastDate, 'MMM d')
         }
       },
+      handleStartChange: function () {
+        this.doUpdate()
+      },
       handleNavMove: function (params) {
         this.moveTimePeriod(params)
         this.$emit(
           this.eventRef + ':navMovePeriod',
-          {
-            unitType: params.unitType,
-            amount: params.amount
-          }
+          params
+        )
+        let payload = this.getAgendaDisplayDates()
+        payload['moveUnit'] = params.unitType
+        payload['moveAmount'] = params.amount
+        this.triggerDisplayChange(
+          this.eventRef,
+          payload
         )
       },
       handleDayClick: function (dateObject) {
         if (this.fullComponentRef) {
           this.fullMoveToDay(dateObject)
+        }
+      },
+      getAgendaDisplayDates: function () {
+        return {
+          startDate: this.makeDT(this.workingDate).toISODate(),
+          endDate: this.makeDT(this.getDaysForwardDate(this.localNumDays)).toISODate(),
+          numDays: this.localNumDays,
+          viewType: this.$options.name
         }
       }
     },

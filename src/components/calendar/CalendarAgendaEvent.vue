@@ -11,7 +11,7 @@
       v-if="showTime"
       class="col-auto calendar-agenda-event-time"
     >
-      <template v-if="eventObject.start.isAllDay">
+      <template v-if="eventObject.start.isAllDay || eventObject.timeSpansMultipleDays">
         All day
       </template>
       <template v-else>
@@ -44,58 +44,30 @@
 </template>
 
 <script>
-  import CalendarMixin from './mixins/CalendarMixin'
+  import {
+    CalendarMixin,
+    CalendarEventMixin,
+    EventPropsMixin
+  } from './mixins'
   import {
     QBtn,
     QTooltip
   } from 'quasar'
-  const { DateTime } = require('luxon')
+  import DateTime from 'luxon/src/datetime'
   export default {
     name: 'CalendarAgendaEvent',
+    mixins: [CalendarMixin, CalendarEventMixin, EventPropsMixin],
     props: {
-      eventObject: {
-        type: Object,
-        default: () => {}
-      },
       agendaStyle: {
         type: String,
         default: 'block'
       },
-      color: {
-        type: String,
-        default: 'primary'
-      },
-      textColor: {
-        type: String,
-        default: 'white'
-      },
-      showTime: {
-        type: Boolean,
-        default: true
-      },
-      monthStyle: {
-        type: Boolean,
-        default: false
-      },
-      eventRef: String,
-      calendarLocale: {
-        type: String,
-        default: () => { return DateTime.local().locale }
-      },
-      calendarTimezone: {
-        type: String,
-        default: () => { return DateTime.local().zoneName }
-      },
-      allowEditing: {
-        type: Boolean,
-        default: false
-      }
+      forwardDate: [Object, Date]
     },
     components: {
       QBtn,
       QTooltip
     },
-    mixins: [CalendarMixin],
     data () {
       return {}
     },
@@ -128,21 +100,6 @@
       },
       getEventStyle: function () {
         return {}
-      },
-      formatTimeRange: function (startTime, endTime) {
-        let returnString = ''
-        // start time
-        returnString += this.simplifyTimeFormat(
-          this.makeDT(startTime).toLocaleString(DateTime.TIME_SIMPLE),
-          (this.formatDate(startTime, 'a') === this.formatDate(endTime, 'a'))
-        )
-        returnString += ' - '
-        // end time
-        returnString += this.simplifyTimeFormat(
-          this.makeDT(endTime).toLocaleString(DateTime.TIME_SIMPLE),
-          false
-        )
-        return returnString
       },
       handleClick: function (e) {
         this.eventObject.allowEditing = this.allowEditing

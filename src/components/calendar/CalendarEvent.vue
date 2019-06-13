@@ -4,19 +4,46 @@
     :style="getEventStyle()"
     @click="handleClick"
   >
-    <template v-if="!eventHasPreviousDay() || (firstDayOfWeek && eventHasPreviousDay())">
-      <span v-if="!isAllDayEvent() && showTime" class="calendar-event-start-time">
-        {{ formatTime(eventObject.start.dateObject) }}
-      </span>
-      <span v-if="isEmptySlot()" class="calendar-event-summary">
+    <template v-if="renderStyle === 'singleLine' || isAllDayEvent() || (renderStyle === 'doubleLine' && eventDuration() < 45)">
+      <template v-if="!eventHasPreviousDay() || ((firstDayOfWeek || isLeftmostColumn) && eventHasPreviousDay())">
+        <div v-if="isEmptySlot()" class="calendar-event-summary">
+          &nbsp;
+        </div>
+        <div v-else class="calendar-event-summary calendar-event-render-single">
+          <span v-if="!isAllDayEvent()" class="calendar-event-time">
+            {{ formatTime(eventObject.start.dateObject) }}
+          </span>
+          {{ eventObject.summary }}
+        </div>
+      </template>
+      <template v-else>
         &nbsp;
-      </span>
-      <span v-else class="calendar-event-summary">
+      </template>
+    </template>
+    <template v-else-if="renderStyle === 'doubleLine'">
+      <div class="calendar-event-summary">
         {{ eventObject.summary }}
-      </span>
+      </div>
+      <div class="calendar-event-time">
+        {{ formatTimeRange(eventObject.start.dateObject, eventObject.end.dateObject) }}
+      </div>
     </template>
     <template v-else>
-      &nbsp;
+      <!-- this is the older event drawing style, will eventually be removed -->
+      <template v-if="!eventHasPreviousDay() || (firstDayOfWeek && eventHasPreviousDay())">
+        <span v-if="!isAllDayEvent() && showTime" class="calendar-event-start-time">
+          {{ formatTime(eventObject.start.dateObject) }}
+        </span>
+        <span v-if="isEmptySlot()" class="calendar-event-summary">
+          &nbsp;
+        </span>
+          <span v-else class="calendar-event-summary">
+            {{ eventObject.summary }}
+          </span>
+      </template>
+      <template v-else>
+        &nbsp;
+      </template>
     </template>
   </div>
 </template>
@@ -26,49 +53,27 @@
     QBtn,
     QTooltip
   } from 'quasar'
-  import CalendarMixin from './mixins/CalendarMixin'
-  import CalendarEventMixin from './mixins/CalendarEventMixin'
+  import {
+    CalendarMixin,
+    CalendarEventMixin,
+    EventPropsMixin
+  } from './mixins'
   import dashHas from 'lodash.has'
-  const { DateTime } = require('luxon')
   export default {
     name: 'CalendarEvent',
+    mixins: [CalendarMixin, CalendarEventMixin, EventPropsMixin],
     props: {
-      eventObject: {
-        type: Object,
-        default: () => {}
-      },
-      color: {
-        type: String,
-        default: 'primary'
-      },
-      textColor: {
-        type: String,
-        default: 'white'
-      },
-      showTime: {
-        type: Boolean,
-        default: true
-      },
-      monthStyle: {
-        type: Boolean,
-        default: false
-      },
-      eventRef: String,
-      preventEventDetail: {
-        type: Boolean,
-        default: false
-      },
       forceAllDay: Boolean,
       currentCalendarDay: Object,
       hasPreviousDay: Boolean,
       hasNextDay: Boolean,
       firstDayOfWeek: Boolean,
       lastDayOfWeek: Boolean,
-      calendarLocale: {
+      renderStyle: {
         type: String,
-        default: () => { return DateTime.local().locale }
+        default: 'singleLine'
       },
-      allowEditing: {
+      isLeftmostColumn: {
         type: Boolean,
         default: false
       }
@@ -77,7 +82,6 @@
       QBtn,
       QTooltip
     },
-    mixins: [CalendarMixin, CalendarEventMixin],
     data () {
       return {}
     },
@@ -149,18 +153,11 @@
         }
         return false
       },
-      formatTime: function (startTime) {
-        let returnString = this.makeDT(startTime).toLocaleString(DateTime.TIME_SIMPLE)
-        // simplify if AM / PM present
-        if (returnString.includes('M')) {
-          returnString = returnString.replace(':00', '') // remove minutes if = ':00'
-            .replace(' AM', 'a')
-            .replace(' PM', 'p')
-        }
-        return returnString
-      },
       isAllDayEvent: function () {
         return this.eventObject.start.isAllDay
+      },
+      eventDuration: function () {
+        return this.getEventDuration(this.eventObject.start.dateObject, this.eventObject.end.dateObject)
       },
       handleClick: function (e) {
         this.eventObject.allowEditing = this.allowEditing
@@ -181,10 +178,17 @@
     height 100%
     padding 2px
     text-overflow clip
-    border-radius .25em
+    border-radius 5px
     margin 1px 0
     font-size 0.8em
     cursor pointer
+    .calendar-event-summary
+      font-weight bolder
+    .calendar-event-time
+      font-weight normal
+    .calendar-event-render-single
+      white-space nowrap
+      overflow hidden
 
   .calendar-event-month
     white-space nowrap

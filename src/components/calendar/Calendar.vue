@@ -45,6 +45,7 @@
           :calendar-timezone="calendarTimezone"
           :prevent-event-detail="preventEventDetail"
           :allow-editing="allowEditing"
+
         />
       </q-tab-pane>
       <q-tab-pane name="tab-week-component" class="calendar-tab-pane-week">
@@ -62,6 +63,8 @@
           :calendar-timezone="calendarTimezone"
           :prevent-event-detail="preventEventDetail"
           :allow-editing="allowEditing"
+          :day-display-start-hour="dayDisplayStartHour"
+
         />
       </q-tab-pane>
       <q-tab-pane name="tab-days-component" class="calendar-tab-pane-week">
@@ -79,6 +82,8 @@
           :calendar-timezone="calendarTimezone"
           :prevent-event-detail="preventEventDetail"
           :allow-editing="allowEditing"
+          :day-display-start-hour="dayDisplayStartHour"
+
         />
       </q-tab-pane>
       <q-tab-pane name="tab-single-day-component" class="calendar-tab-pane-week">
@@ -96,6 +101,8 @@
           :calendar-timezone="calendarTimezone"
           :prevent-event-detail="preventEventDetail"
           :allow-editing="allowEditing"
+          :day-display-start-hour="dayDisplayStartHour"
+
         />
       </q-tab-pane>
       <q-tab-pane name="tab-agenda" class="calendar-tab-pane-agenda">
@@ -120,9 +127,11 @@
 </template>
 
 <script>
-  import CalendarMixin from './mixins/CalendarMixin'
-  import CalendarEventMixin from './mixins/CalendarEventMixin'
-  import CalendarParentComponentMixin from './mixins/CalendarParentComponentMixin'
+  import {
+    CalendarMixin,
+    CalendarEventMixin,
+    CalendarParentComponentMixin
+  } from './mixins'
   import CalendarEvent from './CalendarEvent'
   import CalendarMonth from './CalendarMonth'
   import CalendarMultiDay from './CalendarMultiDay'
@@ -144,6 +153,10 @@
     name: 'Calendar',
     mixins: [CalendarParentComponentMixin, CalendarMixin, CalendarEventMixin],
     props: {
+      startDate: {
+        type: [Object, Date],
+        default: () => { return new Date() }
+      },
       tabLabels: {
         type: Object,
         default: () => {
@@ -184,7 +197,6 @@
           byStartDate: {},
           byId: {}
         },
-        dayRowArray: [],
         thisRefName: this.createRandomString()
       }
     },
@@ -225,7 +237,9 @@
       this.setupEventsHandling()
     },
     watch: {
-      startDate: 'handleStartChange',
+      startDate: function () {
+        this.handleStartChange()
+      },
       eventArray: function () {
         this.getPassedInEventArray()
       },
