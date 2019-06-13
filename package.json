@@ -40,7 +40,7 @@
     "eslint-plugin-promise": "^3.7.0",
     "eslint-plugin-standard": "^3.1.0",
     "eslint-plugin-vue": "^4.5.0",
-    "quasar-cli": "^0.17.19"
+    "quasar-cli": "0.17.24"
   },
   "peerDependencies": {
     "quasar-framework": "^0.17.19"
