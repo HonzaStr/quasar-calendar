@@ -27,81 +27,85 @@
 </template>
 
 <script>
-  import {
-    CalendarMixin,
-    CalendarEventMixin
-  } from './mixins'
-  import CalendarEvent from './CalendarEvent'
-  export default {
-    name: 'CalendarAllDayEvents',
-    props: {
-      startDate: {
-        type: [Object, Date],
-        default: () => { return new Date() }
+import { CalendarMixin, CalendarEventMixin } from './mixins'
+import CalendarEvent from './CalendarEvent'
+export default {
+  name: 'CalendarAllDayEvents',
+  props: {
+    startDate: {
+      type: [Object, Date],
+      default: () => {
+        return new Date()
       },
-      parsed: {
-        type: Object,
-        default: () => {}
-      },
-      numberOfDays: {
-        type: Number,
-        default: 7
-      },
-      eventRef: String,
-      preventEventDetail: {
-        type: Boolean,
-        default: false
-      },
-      allowEditing: {
-        type: Boolean,
-        default: false
-      }
     },
-    components: {
-      CalendarEvent
+    parsed: {
+      type: Object,
+      default: () => {},
     },
-    mixins: [CalendarMixin, CalendarEventMixin],
-    data () {
-      return {
-        dayCellHeight: 5,
-        dayCellHeightUnit: 'rem',
-        workingDate: new Date(),
-        workingDateObject: {},
-        weekArray: []
-      }
+    numberOfDays: {
+      type: Number,
+      default: 7,
     },
-    computed: {
-      cellWidth: function () {
-        return this.calculateDayCellWidth(this.numberOfDays)
-      }
+    eventRef: String,
+    preventEventDetail: {
+      type: Boolean,
+      default: false,
     },
-    methods: {
-      doUpdate: function () {
-        this.mountSetDate()
-      },
-      addDaysToDate: function (thisDateObject, numDays) {
-        return this.makeDT(thisDateObject).plus({ days: numDays })
-      }
+    allowEditing: {
+      type: Boolean,
+      default: false,
     },
-    mounted () {
-      this.mountSetDate()
-    },
-    updated () {
-      this.mountSetDate()
-    },
-    watch: {
-      startDate: 'handleStartChange'
+  },
+  components: {
+    CalendarEvent,
+  },
+  mixins: [CalendarMixin, CalendarEventMixin],
+  data() {
+    return {
+      dayCellHeight: 5,
+      dayCellHeightUnit: 'rem',
+      workingDate: new Date(),
+      workingDateObject: {},
+      weekArray: [],
     }
-  }
+  },
+  computed: {
+    cellWidth: function() {
+      return this.calculateDayCellWidth(this.numberOfDays)
+    },
+  },
+  methods: {
+    doUpdate: function() {
+      this.mountSetDate()
+    },
+    addDaysToDate: function(thisDateObject, numDays) {
+      return this.makeDT(thisDateObject).plus({ days: numDays })
+    },
+  },
+  mounted() {
+    this.mountSetDate()
+  },
+  updated() {
+    this.mountSetDate()
+  },
+  watch: {
+    startDate: 'handleStartChange',
+  },
+}
 </script>
 
 <style lang="stylus">
-  .calendar-day-labels
-    .calendar-day-label
-      font-size 1.1em
-      .calendar-day-label-date
-        font-size 1.75em
-    .calendar-day-label-current
-      font-weight bold
+.calendar-day-labels {
+  .calendar-day-label {
+    font-size: 1.1em;
 
+    .calendar-day-label-date {
+      font-size: 1.45em;
+    }
+  }
+
+  .calendar-day-label-current {
+    font-weight: bold;
+  }
+}
 </style>
