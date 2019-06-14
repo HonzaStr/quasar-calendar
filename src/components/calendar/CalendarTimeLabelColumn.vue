@@ -12,8 +12,10 @@
 </template>
 
 <script>
-  import CalendarMixin from './mixins/CalendarMixin'
-  const { DateTime } = require('luxon')
+  import {
+    CalendarMixin
+  } from './mixins'
+  import DateTime from 'luxon/src/datetime'
   export default {
     name: 'CalendarTimeLabelColumn',
     props: {

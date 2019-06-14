@@ -1,5 +1,5 @@
 import dashHas from 'lodash.has'
-const { DateTime } = require('luxon')
+import DateTime from 'luxon/src/datetime'
 export default {
   computed: {},
   methods: {
@@ -28,6 +28,27 @@ export default {
       this.$root.$emit(
         'click-event-' + eventRef,
         eventObject
+      )
+    },
+    triggerDayClick: function (dateObject, eventRef) {
+      this.$root.$emit(
+        'click-day-' + eventRef, {
+          day: dateObject.toObject()
+        }
+      )
+    },
+    triggerDisplayChange: function (eventRef, payload) {
+      if (this.fullComponentRef) {
+        // this component is part of a parent calendar, so look at current tab
+        payload['visible'] = this.$parent.active
+        payload['tabName'] = this.$parent.name
+      }
+      else {
+        payload['visible'] = true
+      }
+      this.$root.$emit(
+        'display-change-' + eventRef,
+        payload
       )
     },
     handleEventDetailEvent: function (params, thisRef) {
@@ -121,6 +142,7 @@ export default {
       else {
         this.weekDateArray = this.getWeekDateArray(numberOfDays)
       }
+      return this.weekDateArray
     },
     getForcedWeekBookendDates: function (numberOfDays, sundayFirstDayOfWeek) {
       if (numberOfDays === undefined) {
@@ -177,13 +199,35 @@ export default {
         .toLowerCase()
     },
     moveTimePeriod: function (params) {
-      let paramObj = {}
-      paramObj[params.unitType] = params.amount
-      this.workingDate = this.workingDate.plus(paramObj)
+      if (dashHas(params, 'absolute')) {
+        this.workingDate = this.makeDT(params.absolute)
+      }
+      else {
+        let paramObj = {}
+        paramObj[params.unitType] = params.amount
+        this.workingDate = this.workingDate.plus(paramObj)
+      }
     },
     setTimePeriod: function (params) {
       this.workingDate = params.dateObject
     },
+    handleDateChange: function (params) {
+      let dateObject = null
+      if (dashHas(params, 'dateObject')) {
+        dateObject = params.dateObject
+      }
+      else {
+        dateObject = params
+      }
+      this.workingDate = this.makeDT(dateObject)
+      this.triggerDisplayChange(
+        this.eventRef,
+        {
+          newDate: this.workingDate
+        }
+      )
+    },
+
     getDayOfWeek: function () {
       return this.createThisDate(this.dayNumber).format('dddd')
     },
@@ -258,6 +302,13 @@ export default {
       else {
         return 'NOID' + this.createRandomString()
       }
+    },
+    getDayHourId: function (eventRef, workingDate, thisHour) {
+      return eventRef +
+        '-' +
+        this.makeDT(workingDate).toISODate() +
+        '-hour-' +
+        thisHour
     }
   },
   mounted () {}

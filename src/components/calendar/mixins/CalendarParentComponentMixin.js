@@ -1,9 +1,10 @@
-const { DateTime } = require('luxon')
+// this file contains shared properties for Calendar, CalendarAgenda, CalendarMonth and CalendarMultiday
+import DateTime from 'luxon/src/datetime'
 export default {
   props: {
     startDate: {
       type: [Object, Date],
-      default: () => { return new Date() }
+      default: () => { return DateTime.local() }
     },
     eventArray: {
       type: Array,
@@ -15,7 +16,7 @@ export default {
     },
     eventRef: {
       type: String,
-      default: 'cal-' + Math.random().toString(36).substring(2, 15)
+      default: () => { return 'cal-' + Math.random().toString(36).substring(2, 15) }
     },
     preventEventDetail: {
       type: Boolean,
@@ -36,7 +37,16 @@ export default {
     allowEditing: {
       type: Boolean,
       default: false
-    }
+    },
+    renderHtml: {
+      type: Boolean,
+      default: false
+    },
+    dayDisplayStartHour: {
+      type: Number,
+      default: 7
+    },
+    fullComponentRef: String
   },
   mounted () {}
 }

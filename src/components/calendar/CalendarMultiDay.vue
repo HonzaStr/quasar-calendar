@@ -43,6 +43,7 @@
         :prevent-event-detail="preventEventDetail"
         :calendar-locale="calendarLocale"
         :calendar-timezone="calendarTimezone"
+        :allow-editing="allowEditing"
       />
     </div>
 
@@ -84,15 +85,18 @@
       :calendar-locale="calendarLocale"
       :calendar-timezone="calendarTimezone"
       :allow-editing="allowEditing"
+      :render-html="renderHtml"
     />
 
   </div>
 </template>
 
 <script>
-  import CalendarMixin from './mixins/CalendarMixin'
-  import CalendarEventMixin from './mixins/CalendarEventMixin'
-  import CalendarParentComponentMixin from './mixins/CalendarParentComponentMixin'
+  import {
+    CalendarMixin,
+    CalendarEventMixin,
+    CalendarParentComponentMixin
+  } from './mixins'
   import CalendarEvent from './CalendarEvent'
   import CalendarDayColumn from './CalendarDayColumn'
   import CalendarTimeLabelColumn from './CalendarTimeLabelColumn'
@@ -103,8 +107,10 @@
   import {
     QBtn,
     QTooltip,
-    QScrollArea
+    QScrollArea,
+    scroll
   } from 'quasar'
+  const { getScrollTarget, setScrollPosition } = scroll
   export default {
     name: 'CalendarMultiDay',
     mixins: [CalendarParentComponentMixin, CalendarMixin, CalendarEventMixin],
@@ -138,8 +144,7 @@
       scrollHeight: {
         type: String,
         default: 'auto'
-      },
-      fullComponentRef: String
+      }
     },
     components: {
       CalendarEvent,
@@ -157,7 +162,6 @@
       return {
         workingDate: new Date(),
         weekDateArray: [],
-        dayRowArray: [],
         parsed: this.getDefaultParsed(),
         thisNavRef: this.createNewNavEventName(),
         eventDetailEventObject: {}
@@ -209,18 +213,55 @@
       },
       doUpdate: function () {
         this.mountSetDate()
-        this.buildWeekDateArray(this.numDays, this.sundayFirstDayOfWeek)
+        let payload = this.getMultiDayDisplayDates(
+          this.buildWeekDateArray(this.numDays, this.sundayFirstDayOfWeek)
+        )
+        this.triggerDisplayChange(
+          this.eventRef,
+          payload
+        )
+        this.$nextTick(() => {
+          this.scrollToFirstDay()
+        })
       },
-      handleNavMove: function (unitType, amount) {
-        this.moveTimePeriod(unitType, amount)
+      handleNavMove: function (params) {
+        this.moveTimePeriod(params)
         this.$emit(
           this.eventRef + ':navMovePeriod',
-          {
-            unitType: unitType,
-            amount: amount
-          }
+          params
         )
-        this.buildWeekDateArray()
+        let payload = this.getMultiDayDisplayDates(
+          this.buildWeekDateArray()
+        )
+        payload['moveUnit'] = params.unitType
+        payload['moveAmount'] = params.amount
+        this.triggerDisplayChange(
+          this.eventRef,
+          payload
+        )
+      },
+      scrollToElement: function (el) {
+        let target = getScrollTarget(el)
+        let offset = el.offsetTop - el.scrollHeight
+        let duration = 0
+        setScrollPosition(target, offset, duration)
+      },
+      scrollToFirstDay: function () {
+        let thisId = this.getDayHourId(
+          this.eventRef,
+          this.weekDateArray[0],
+          (this.dayDisplayStartHour + 1)
+        )
+        let thisEl = document.getElementById(thisId)
+        this.scrollToElement(thisEl)
+      },
+      getMultiDayDisplayDates: function (weekDateArray) {
+        return {
+          startDate: weekDateArray[0].toISODate(),
+          endDate: weekDateArray[weekDateArray.length - 1].toISODate(),
+          numDays: this.numDays,
+          viewType: this.$options.name
+        }
       }
     },
     mounted () {
@@ -229,6 +270,10 @@
       this.$root.$on(
         this.eventRef + ':navMovePeriod',
         this.handleNavMove
+      )
+      this.$root.$on(
+        this.fullComponentRef + ':moveToSingleDay',
+        this.handleDateChange
       )
       this.$root.$on(
         'click-event-' + this.eventRef,
@@ -240,7 +285,9 @@
       )
     },
     watch: {
-      startDate: 'handleStartChange',
+      startDate: function (newVal, oldVal) {
+        this.handleStartChange()
+      },
       eventArray: 'getPassedInEventArray',
       parsedEvents: 'getPassedInParsedEvents'
     }

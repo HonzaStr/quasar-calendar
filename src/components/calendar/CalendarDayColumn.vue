@@ -5,37 +5,47 @@
       v-for="thisHour in 24"
       :key="thisHour"
       :style="getCellStyle"
+      :id="getDayHourId(eventRef, workingDate, thisHour - 1)"
     >
       <div class="calendar-day-time-content"></div>
     </div>
 
     <!-- events -->
+    <template v-if="dateEvents.length > 0">
+      <div
+        v-for="eventObject in dateEvents"
+        v-if="!eventObject.start.isAllDay && !eventObject.timeSpansMultipleDays"
+        :key="makeDT(workingDate).toISODate() + getEventIdString(eventObject)"
+        :class="calculateDayEventClass(eventObject)"
+        :style="calculateDayEventStyle(eventObject)"
+      >
+        <calendar-event
+          :event-object="eventObject"
+          :event-ref="eventRef"
+          :calendar-locale="calendarLocale"
+          :calendar-timezone="calendarTimezone"
+          :prevent-event-detail="preventEventDetail"
+          :allow-editing="allowEditing"
+          render-style="doubleLine"
+        />
+      </div>
+    </template>
+
+    <!-- current time -->
     <div
-      v-if="dateEvents.length > 0"
-      v-for="eventObject in dateEvents"
-      :key="makeDT(workingDate).toISODate() + getEventIdString(eventObject)"
-      :class="calculateDayEventClass(eventObject)"
-      :style="calculateDayEventStyle(eventObject)"
-    >
-      <calendar-event
-        v-if="!eventObject.start.isAllDay"
-        :event-object="eventObject"
-        :event-ref="eventRef"
-        :calendar-locale="calendarLocale"
-        :calendar-timezone="calendarTimezone"
-        :prevent-event-detail="preventEventDetail"
-        :allow-editing="allowEditing"
-      />
-    </div>
+      class="current-time-line"
+      :style="timePosition"
+    ></div>
 
   </div>
 </template>
 
 <script>
   import CalendarEvent from './CalendarEvent'
-  import CalendarMixin from './mixins/CalendarMixin'
-  import { date } from 'quasar'
-  const { DateTime } = require('luxon')
+  import {
+    CalendarMixin
+  } from './mixins'
+  import DateTime from 'luxon/src/datetime'
   export default {
     name: 'CalendarDayColumn',
     props: {
@@ -84,7 +94,11 @@
     data () {
       return {
         workingDate: new Date(),
-        eventDetailEventObject: {}
+        eventDetailEventObject: {},
+        timePosition: {
+          display: 'none'
+        },
+        timePositionInterval: {}
       }
     },
     watch: {
@@ -102,9 +116,10 @@
         return returnVal
       },
       getCellStyle: function () {
+        let thisHeight = this.dayCellHeight + this.dayCellHeightUnit
         return {
-          height: this.dayCellHeight + this.dayCellHeightUnit,
-          'max-height': this.dayCellHeight + this.dayCellHeightUnit
+          height: thisHeight,
+          'max-height': thisHeight
         }
       }
     },
@@ -127,10 +142,28 @@
         }
         let positions = {}
         if (thisEvent.start.dateObject && thisEvent.end.dateObject) {
-          positions = this.calculateDayEventPosition(
-            thisEvent.start.dateObject,
-            thisEvent.end.dateObject
-          )
+          if (thisEvent.timeSpansOvernight) {
+            if (this.makeDT(this.workingDate).toISODate() === this.makeDT(thisEvent.start.dateObject).toISODate()) {
+              // this is a overnight event's first day
+              positions = this.calculateDayEventPosition(
+                thisEvent.start.dateObject,
+                thisEvent.start.dateObject.set({ hour: 23, minute: 59 }) // set to midnight
+              )
+            }
+            else {
+              // this is the second day of an overnight event
+              positions = this.calculateDayEventPosition(
+                thisEvent.end.dateObject.set({ hour: 0, minute: 0 }), // set to midnight
+                thisEvent.end.dateObject
+              )
+            }
+          }
+          else {
+            positions = this.calculateDayEventPosition(
+              thisEvent.start.dateObject,
+              thisEvent.end.dateObject
+            )
+          }
         }
         else {
           positions = {
@@ -151,23 +184,63 @@
         return style
       },
       calculateDayEventPosition: function (startDateObject, endDateObject) {
-        let startMidnight = date.adjustDate(startDateObject, {
+        // let startMidnight = date.adjustDate(startDateObject, {
+        //   hours: 0,
+        //   minutes: 0,
+        //   seconds: 0,
+        //   milliseconds: 0
+        // })
+        // let topMinuteCount = date.getDateDiff(startDateObject, startMidnight, 'minutes')
+        // let heightMinuteCount = date.getDateDiff(endDateObject, startDateObject, 'minutes')
+        let startMidnight = startDateObject.set({
           hours: 0,
           minutes: 0,
           seconds: 0,
           milliseconds: 0
         })
-        let topMinuteCount = date.getDateDiff(startDateObject, startMidnight, 'minutes')
-        let heightMinuteCount = date.getDateDiff(endDateObject, startDateObject, 'minutes')
+        let topMinuteCount = startDateObject.diff(startMidnight).as('minutes')
+        let heightMinuteCount = endDateObject.diff(startDateObject).as('minutes')
         let sizePerMinute = this.dayCellHeight / 60
         return {
           top: (topMinuteCount * sizePerMinute) + this.dayCellHeightUnit,
           height: (heightMinuteCount * sizePerMinute) + this.dayCellHeightUnit
         }
+      },
+      calculateTimePosition: function () {
+        let pos = {}
+        let thisDateObject = this.makeDT(DateTime.local())
+        if (
+          thisDateObject.hasSame(this.workingDate, 'day') &&
+          thisDateObject.hasSame(this.workingDate, 'month') &&
+          thisDateObject.hasSame(this.workingDate, 'year')
+        ) {
+          pos = this.calculateDayEventPosition(thisDateObject, thisDateObject)
+          pos.height = pos.top + 1
+        }
+        else {
+          pos = {
+            display: 'none'
+          }
+        }
+        this.timePosition = pos
+      },
+      startTimePositionInterval: function () {
+        this.calculateTimePosition()
+        this.timePositionInterval = setInterval(
+          this.calculateTimePosition,
+          60000 // one minute
+        )
+      },
+      endTimePositionInterval: function () {
+        clearInterval(this.timePositionInterval)
       }
     },
     mounted () {
       this.mountSetDate()
+      this.startTimePositionInterval()
+    },
+    beforeDestroy () {
+      this.endTimePositionInterval()
     }
   }
 </script>
@@ -195,8 +268,22 @@
       border-top $borderThin
     .calendar-day-event-overlap
       margin-left 1px
+      ::after
+        position absolute
+        top -1px
+        left -1px
+        width: calc(100% + 2px)
+        height: calc(100% + 2px)
+        content ''
+        border-radius 5px
+        border 1px solid white
+        box-sizing border-box
     .calendar-day-event-overlap-first
       margin-left 0
+    .current-time-line
+      position absolute
+      border 1px solid red
+      width 100%
 
 
 </style>

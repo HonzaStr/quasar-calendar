@@ -39,16 +39,24 @@
           }"
           v-for="(thisDay, weekDayIndex) in thisWeek"
           :key="makeDT(thisDay.dateObject).toISODate()"
+          @click="handleDayClick(thisDay.dateObject)"
         >
           <div
             v-if="isCurrentDate(thisDay.dateObject)"
-            :class="{ 'cursor-pointer': calendarDaysAreClickable }"
-            @click="handleDayClick(thisDay.dateObject)"
+            :class="{
+              'calendar-day-number': true,
+              'calendar-day-number-current': true,
+              'cursor-pointer': calendarDaysAreClickable
+            }"
           >
-            <quantity-bubble
-              :quantity="thisDay.dateObject.day"
-              :offset="false"
-            />
+            <q-btn
+              color="primary"
+              round
+              dense
+              size="xs"
+            >
+              <span class="inner-span">{{ thisDay.dateObject.day }}</span>
+            </q-btn>
           </div>
           <div
             v-else
@@ -56,13 +64,20 @@
               'calendar-day-number': true,
               'cursor-pointer': calendarDaysAreClickable
             }"
-            @click="handleDayClick(thisDay.dateObject)"
           >
-            {{ thisDay.dateObject.day }}
+            <q-btn
+              round
+              flat
+              dense
+              size="xs"
+            >
+              <span class="inner-span">{{ thisDay.dateObject.day }}</span>
+            </q-btn>
           </div>
           <div class="calendar-day-content">
             <template v-if="hasAnyEvents(thisDay.dateObject)">
               <div
+                v-if="!eventIsContinuedFromPreviousDay(thisEvent.id, thisDay.dateObject)"
                 v-for="thisEvent in monthGetDateEvents(thisDay.dateObject)"
                 :key="thisEvent.id"
               >
@@ -77,6 +92,8 @@
                   :first-day-of-week="(weekDayIndex === 0)"
                   :last-day-of-week="(weekDayIndex === (thisWeek.length -1))"
                   :allow-editing="allowEditing"
+                  @click="handleCalendarEventClick"
+                  render-style="singleLine"
                 />
               </div>
             </template>
@@ -93,15 +110,18 @@
       :calendar-timezone="calendarTimezone"
       :event-ref="eventRef"
       :allow-editing="allowEditing"
+      :render-html="renderHtml"
     />
 
   </div>
 </template>
 
 <script>
-  import CalendarMixin from './mixins/CalendarMixin'
-  import CalendarEventMixin from './mixins/CalendarEventMixin'
-  import CalendarParentComponentMixin from './mixins/CalendarParentComponentMixin'
+  import {
+    CalendarMixin,
+    CalendarEventMixin,
+    CalendarParentComponentMixin
+  } from './mixins'
   import {
     QBtn,
     QTooltip,
@@ -115,7 +135,7 @@
   import CalendarDayLabels from './CalendarDayLabels'
   import CalendarHeaderNav from './CalendarHeaderNav'
   import CalendarEventDetail from './CalendarEventDetail'
-  const { DateTime } = require('luxon')
+  import DateTime from 'luxon/src/datetime'
   export default {
     name: 'CalendarMonth',
     components: {
@@ -132,9 +152,7 @@
       QScrollArea
     },
     mixins: [CalendarParentComponentMixin, CalendarMixin, CalendarEventMixin],
-    props: {
-      fullComponentRef: String
-    },
+    props: {},
     data () {
       return {
         dayCellHeight: 5,
@@ -142,7 +160,8 @@
         workingDate: new Date(),
         weekArray: [],
         parsed: this.getDefaultParsed(),
-        eventDetailEventObject: {}
+        eventDetailEventObject: {},
+        eventClicked: false
       }
     },
     computed: {
@@ -151,12 +170,17 @@
       }
     },
     methods: {
+
       monthGetDateEvents: function (dateObject) {
         return this.dateGetEvents(dateObject)
       },
       doUpdate: function () {
         this.mountSetDate()
-        this.generateCalendarCellArray()
+        let payload = this.getWeekArrayDisplayDates(this.generateCalendarCellArray())
+        this.triggerDisplayChange(
+          this.eventRef,
+          payload
+        )
       },
       getCalendarCellArray: function (monthNumber, yearNumber) {
         let currentDay = this.makeDT(
@@ -210,22 +234,52 @@
           this.makeDT(this.workingDate).month,
           this.makeDT(this.workingDate).year
         )
+        return this.weekArray
       },
       handleNavMove: function (params) {
         this.moveTimePeriod(params)
         this.$emit(
           this.eventRef + ':navMovePeriod',
-          {
-            unitType: params.unitType,
-            amount: params.amount
-          }
+          // {
+          //   unitType: params.unitType,
+          //   amount: params.amount
+          // }
+          params
         )
-        this.generateCalendarCellArray()
+        let payload = this.getWeekArrayDisplayDates(this.generateCalendarCellArray())
+        payload['moveUnit'] = params.unitType
+        payload['moveAmount'] = params.amount
+        this.triggerDisplayChange(
+          this.eventRef,
+          payload
+        )
+      },
+      getWeekArrayDisplayDates: function (weekArray) {
+        // this takes a weekArray and figures out the values to send for a page display event
+        let startDateObj = weekArray[0][0].dateObject
+        const lastWeek = weekArray[weekArray.length - 1]
+        let endDateObj = lastWeek[lastWeek.length - 1].dateObject
+        return {
+          startDate: startDateObj.toISODate(),
+          endDate: endDateObj.toISODate(),
+          numDays: Math.ceil(endDateObj.diff(startDateObj).as('days') + 1),
+          viewType: this.$options.name
+        }
       },
       handleDayClick: function (dateObject) {
+        // event item clicked; prevent "day" event
+        if (this.eventClicked) {
+          this.eventClicked = false
+          return
+        }
         if (this.fullComponentRef) {
           this.fullMoveToDay(dateObject)
         }
+        this.handleNavMove({ absolute: dateObject })
+        this.triggerDayClick(dateObject, this.eventRef)
+      },
+      handleCalendarEventClick: function () {
+        this.eventClicked = true
       }
     },
     mounted () {
@@ -245,7 +299,9 @@
       )
     },
     watch: {
-      startDate: 'handleStartChange',
+      startDate: function () {
+        this.handleStartChange()
+      },
       eventArray: function () {
         this.getPassedInEventArray()
       },
@@ -298,6 +354,11 @@
           vertical-align middle
           padding-top .25em
           padding-left .25em
+          .inner-span
+            font-size 1.5em
+        .calendar-day-number-current
+          .inner-span
+            font-size 1.25em
       .calendar-day-current
         background-color $currentDayBackgroundColor
       .calendar-day-weekend
