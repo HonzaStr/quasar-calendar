@@ -1,46 +1,50 @@
-# Quasar Calendar
-An event display calendar for the Quasar framework. This is still a work in progress project but we're putting in functionality and squashing bugs on a consistent basis.
+# Daykeep Calendar
+An event display calendar for the Quasar framework. 
 
-![screenshot](https://stormseed.github.io/quasar-calendar-demo/statics/quasar_calendar_snap.png)
+![screenshot](https://stormseed.github.io/daykeep-calendar-quasar/statics/quasar_calendar_snap.png)
+
+Formerly known as Quasar Calendar, **Daykeep Calendar for Quasar** is a Quasar-flavored Vue.js calendar component.
 
 ## Demo
 
 You can see a demo of the calendar components with event data at:
 
-[Quasar calendar demo](https://stormseed.github.io/quasar-calendar-demo)
+[Daykeep Calendar for Quasar demo](https://stormseed.github.io/daykeep-calendar-quasar)
 
 ## Setup
 
+Version 1.0.x of Daykeep Calendar is intended to be used with [Quasar Framework v1](https://v1.quasar-framework.org/). For legacy versions of Quasar, you should use v0.3.x of Quasar Calendar.
+
 ```shell
-npm install quasar-calendar
+yarn add @daykeep/calendar-quasar
 ```
 
-Add Calendar to you .vue page similar to a a Quasar component
+Add Daykeep Calendar to your .vue page similar to a Quasar component
 
 ```js
-import { Calendar } from 'quasar-calendar'
+import { DaykeepCalendar } from '@daykeep/calendar-quasar'
 ```
 
 or import individual components
 
 ```js
 import {
-  CalendarMonth,
-  CalendarAgenda,
-  CalendarMultiDay
-} from 'quasar-calendar'
+  DaykeepCalendarMonth,
+  DaykeepCalendarAgenda,
+  DaykeepCalendarMultiDay
+} from '@daykeep/calendar-quasar'
 ```
 
 In your template, you can just put in a calendar viewer using the current date as the start date
 
 ```html
-<calendar />
+<daykeep-calendar />
 ```
 
 Or you can pass in parameters to customize
 
 ```html
-<calendar-month
+<daykeep-calendar-month
   :start-date="Date('2019-01-01')"
   :event-array="someEventObject"
   :sunday-first-day-of-week="true"
@@ -124,7 +128,7 @@ By default we use our own event detail popup when an event is clicked. You can o
 So to implement, be sure to have `prevent-event-detail` and `event-ref` set when you embed a calendar component:
 
 ```html
-<calendar
+<daykeep-calendar
   event-ref="MYCALENDAR"
   :prevent-event-detail="true"
   :event-array="someEventObject"
@@ -157,9 +161,15 @@ Only a subset of fields are currently editable:
 
 ## Calendar Month Day Click Events
 
+<<<<<<< HEAD
 The `CalendarMonth` component triggers a "click-day-{eventRef}" event when a calendar cell is clicked. The event data is an object describing the day, with a `day`, `month`, and `year` property each set to the appropriate value for the selected day.
 
 So for a `<calendar-month>` component with a "MYCALENDAR" `event-ref`:
+=======
+The `DaykeepCalendarMonth` component triggers a "click-day-{eventRef}" event when a calendar cell is clicked. The event data is an object describing the day, with a `day`, `month`, and `year` property each set to the appropriate value for the selected day.
+
+So for a `<daykeep-calendar-month>` component with a "MYCALENDAR" `event-ref`:
+>>>>>>> 9349327c70e0dee22b88ea94f9830369e5e67bf4
 ```js
 this.$root.$on(
   'click-day-MYCALENDAR',
@@ -172,7 +182,7 @@ this.$root.$on(
 
 ## Individual Vue components
 
-The usable components of `Calendar`, `CalendarMonth`, `CalendarMultiDay` and `CalendarAgenda` share the following properties:
+The usable components of `DaykeepCalendar`, `DaykeepCalendarMonth`, `DaykeepCalendarMultiDay` and `DaykeepCalendarAgenda` share the following properties:
 
 | Vue Property | Type | Description |
 | --- | --- | --- |
@@ -188,23 +198,25 @@ The usable components of `Calendar`, `CalendarMonth`, `CalendarMultiDay` and `Ca
 
 In addition, each individual components have the following properties:
 
-### Calendar
+### DaykeepCalendar
 | Vue Property | Type | Description |
 | --- | --- | --- |
 | `tab-labels` | Object | Passing in an object with strings that will override the labels for the different calendar components. Set variables for `month`, `week`, `threeDay`, `day` and `agenda`. Eventually we will replace this with language files and will use the `calendar-locale` setting. |
 
-### CalendarMultiDay
+### DaykeepCalendarMultiDay
 
 | Vue Property | Type | Description |
 | --- | --- | --- |
 | `num-days` | Number | The number of days the multi-day calendar. A value of `1` will change the header to be more appropriate for a single day. |
 | `nav-days` | Number | This is how many days the previous / next navigation buttons will jump. |
 | `force-start-of-week` | Boolean | Default is `false`. This is appropriate if you have a week display (7 days) that you want to always start on the first day of the week. |
+| `day-cell-height` | Number | Default is `5`. How high in units (units defined below) an hour should be. |
+| `day-cell-height-unit` | String | Default is `rem`. When combined with the `day-cell-height` above, this will determine the CSS-based height of an hour in a day. |
+| `show-half-hours` | Boolean | Default is `false`. Show ticks and labels for half hour segments. |
 
-### CalendarAgenda
+### DaykeepCalendarAgenda
 
 | Vue Property | Type | Description |
 | --- | --- | --- |
 | `num-days` | Number | The number of days to initially display and also the number of additional days to load up when the user scrolls to the bottom of the agenda. |
-| `agenda-style` | String | Defaults to "dot". You can also set this as "block" to use an infinite scroll design that is meant for mobile use. |
 | `scroll-height` | String | Defaults to `200px`, this is meant to define the size of the "block" style. |
