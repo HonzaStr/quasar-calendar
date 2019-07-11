@@ -161,9 +161,15 @@ Only a subset of fields are currently editable:
 
 ## Calendar Month Day Click Events
 
+<<<<<<< HEAD
+The `CalendarMonth` component triggers a "click-day-{eventRef}" event when a calendar cell is clicked. The event data is an object describing the day, with a `day`, `month`, and `year` property each set to the appropriate value for the selected day.
+
+So for a `<calendar-month>` component with a "MYCALENDAR" `event-ref`:
+=======
 The `DaykeepCalendarMonth` component triggers a "click-day-{eventRef}" event when a calendar cell is clicked. The event data is an object describing the day, with a `day`, `month`, and `year` property each set to the appropriate value for the selected day.
 
 So for a `<daykeep-calendar-month>` component with a "MYCALENDAR" `event-ref`:
+>>>>>>> 9349327c70e0dee22b88ea94f9830369e5e67bf4
 ```js
 this.$root.$on(
   'click-day-MYCALENDAR',
