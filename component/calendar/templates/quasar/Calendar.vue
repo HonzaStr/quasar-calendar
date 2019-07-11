@@ -1,45 +1,22 @@
 <template>
   <div class="calendar-test">
+    x
     <q-tabs
       v-model="currentTab"
       class="text-primary calendar-tabs"
       ref="fullCalendarTabs"
       align="left"
     >
-      <q-tab
-        name="tab-month"
-        icon="view_module"
-        :label="tabLabels.month"
-      />
-      <q-tab
-        name="tab-week-component"
-        icon="view_week"
-        :label="tabLabels.week"
-      />
-      <q-tab
-        name="tab-days-component"
-        icon="view_column"
-        :label="tabLabels.threeDay"
-      />
-      <q-tab
-        name="tab-single-day-component"
-        icon="view_day"
-        :label="tabLabels.day"
-      />
-      <q-tab
-        name="tab-agenda"
-        icon="view_agenda"
-        :label="tabLabels.agenda"
-      />
+      <q-tab name="tab-month" icon="view_module" :label="tabLabels.month" />
+      <q-tab name="tab-week-component" icon="view_week" :label="tabLabels.week" />
+      <q-tab name="tab-days-component" icon="view_column" :label="tabLabels.threeDay" />
+      <q-tab name="tab-single-day-component" icon="view_day" :label="tabLabels.day" />
+      <q-tab name="tab-agenda" icon="view_agenda" :label="tabLabels.agenda" />
     </q-tabs>
 
     <q-separator />
 
-    <q-tab-panels
-      v-model="currentTab"
-      class="calendar-tab-panels"
-      animated
-    >
+    <q-tab-panels v-model="currentTab" class="calendar-tab-panels" animated>
       <q-tab-panel name="tab-month" class="calendar-tab-panel-month">
         <calendar-month
           :ref="'month-' + thisRefName"
@@ -52,7 +29,6 @@
           :calendar-timezone="calendarTimezone"
           :prevent-event-detail="preventEventDetail"
           :allow-editing="allowEditing"
-
         />
       </q-tab-panel>
       <q-tab-panel name="tab-week-component" class="calendar-tab-panel-week">
@@ -71,7 +47,6 @@
           :prevent-event-detail="preventEventDetail"
           :allow-editing="allowEditing"
           :day-display-start-hour="dayDisplayStartHour"
-
         />
       </q-tab-panel>
       <q-tab-panel name="tab-days-component" class="calendar-tab-panel-week">
@@ -90,7 +65,6 @@
           :prevent-event-detail="preventEventDetail"
           :allow-editing="allowEditing"
           :day-display-start-hour="dayDisplayStartHour"
-
         />
       </q-tab-panel>
       <q-tab-panel name="tab-single-day-component" class="calendar-tab-panel-week">
@@ -109,7 +83,6 @@
           :prevent-event-detail="preventEventDetail"
           :allow-editing="allowEditing"
           :day-display-start-hour="dayDisplayStartHour"
-
         />
       </q-tab-panel>
       <q-tab-panel name="tab-agenda" class="calendar-tab-panel-agenda">
@@ -129,59 +102,49 @@
         />
       </q-tab-panel>
     </q-tab-panels>
-
   </div>
 </template>
 
 <script>
-  import {
-    CalendarMixin,
-    CalendarEventMixin,
-    CalendarParentComponentMixin,
-    CalendarTemplateMixin
-  } from '@daykeep/calendar-core'
-  import CalendarMonth from './CalendarMonth'
-  import CalendarMultiDay from './CalendarMultiDay'
-  import CalendarAgenda from './CalendarAgenda'
-  import {
+import {
+  CalendarMixin,
+  CalendarEventMixin,
+  CalendarParentComponentMixin,
+  CalendarTemplateMixin,
+} from '@daykeep/calendar-core'
+import CalendarMonth from './CalendarMonth'
+import CalendarMultiDay from './CalendarMultiDay'
+import CalendarAgenda from './CalendarAgenda'
+import { QTabs, QTab, QTabPanels, QTabPanel, QSeparator } from 'quasar'
+
+export default {
+  name: 'Calendar',
+  mixins: [CalendarParentComponentMixin, CalendarMixin, CalendarEventMixin, CalendarTemplateMixin],
+  components: {
+    CalendarMonth,
+    CalendarMultiDay,
+    CalendarAgenda,
     QTabs,
     QTab,
     QTabPanels,
     QTabPanel,
-    QSeparator
-  } from 'quasar'
-
-  export default {
-    name: 'Calendar',
-    mixins: [
-      CalendarParentComponentMixin,
-      CalendarMixin,
-      CalendarEventMixin,
-      CalendarTemplateMixin
-    ],
-    components: {
-      CalendarMonth,
-      CalendarMultiDay,
-      CalendarAgenda,
-      QTabs,
-      QTab,
-      QTabPanels,
-      QTabPanel,
-      QSeparator
-    }
-  }
+    QSeparator,
+  },
+}
 </script>
 
 <style lang="stylus">
-  @import '~@daykeep/calendar-core/component/calendar/styles-common/calendar.vars.styl'
+@import '~@daykeep/calendar-core/component/calendar/styles-common/calendar.vars.styl';
 
-  .calendar-tab-panels
-    .calendar-tab-panel-day,
-    .calendar-tab-panel-week
-      height 60vh
-      max-height 60vh
-      overflow hidden
-    .q-tab-panel
-      border none
+.calendar-tab-panels {
+  .calendar-tab-panel-day, .calendar-tab-panel-week {
+    height: 60vh;
+    max-height: 60vh;
+    overflow: hidden;
+  }
 
+  .q-tab-panel {
+    border: none;
+  }
+}
 </style>
