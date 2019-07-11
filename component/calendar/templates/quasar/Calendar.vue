@@ -1,6 +1,5 @@
 <template>
   <div class="calendar-test">
-    x
     <q-tabs
       v-model="currentTab"
       class="text-primary calendar-tabs"
