@@ -1,5 +1,6 @@
 <template>
   <div class="calendar-test">
+    dd
     <q-tabs
       v-model="currentTab"
       class="text-primary calendar-tabs"
@@ -137,8 +138,8 @@ export default {
 
 .calendar-tab-panels {
   .calendar-tab-panel-day, .calendar-tab-panel-week {
-    height: 60vh;
-    max-height: 60vh;
+    height: 90vh;
+    max-height: 90vh;
     overflow: hidden;
   }
 

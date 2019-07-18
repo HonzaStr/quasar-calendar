@@ -1,5 +1,5 @@
 {
-  "name": "calendar-quasar",
+  "name": "@daykeep/calendar-quasar",
   "version": "1.0.0-beta.3",
   "productName": "Daykeep Calendar for Quasar",
   "description": "A full display calendar for the Quasar Vue.js framework",
